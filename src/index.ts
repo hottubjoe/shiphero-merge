@@ -1,5 +1,6 @@
 /** Main entry point: `npm start` (your PC) or the Docker image (Railway). */
 import crypto from 'node:crypto';
+import http from 'node:http';
 import { buildApp, checkConnections } from './app.ts';
 import { connectionProblems, dashboardProblems } from './config.ts';
 import { startServers } from './dashboard/server.ts';
@@ -12,10 +13,22 @@ const dashProblems = dashboardProblems(config);
 if (dashProblems.length) {
   console.log('\nSetup needed before the dashboard can start:\n');
   for (const p of dashProblems) console.log('  • ' + p);
-  console.log(`\nHere is a random SESSION_SECRET you can use:\n  SESSION_SECRET=${crypto.randomBytes(32).toString('hex')}\n`);
-  // In the cloud, exit with an error so the hosting dashboard shows the problem in its logs.
-  process.exit(1);
+  console.log(`\n(If you need one: SESSION_SECRET=${crypto.randomBytes(32).toString('hex')})\n`);
+  // Don't crash-loop: serve a plain setup page (no data, no controls) until the settings are fixed.
+  const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
+  http
+    .createServer((req, res) => {
+      if (req.url === '/healthz') return void res.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+      res.writeHead(503, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(
+        `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px system-ui;background:#0d1117;color:#e6edf3;display:grid;place-items:center;min-height:100vh;margin:0"><div style="max-width:520px;padding:24px"><h2>COLDEST Merge Engine: almost ready</h2><p>Fix this in your hosting settings (Railway → Variables), then wait for the restart:</p><ul>${dashProblems.map((p) => `<li>${esc(p)}</li>`).join('')}</ul><p style="color:#8b949e">Nothing is running against TikTok or ShipHero until this is fixed.</p></div></body>`,
+      );
+    })
+    .listen(config.dashboardPort, config.host);
+} else {
+  startApp();
 }
+
+function startApp() {
 
 const problemsNow = () => connectionProblems(config, { tiktokToken: tiktok.hasStoredToken(), shopCipher: !!tiktok.shopCipher() });
 
@@ -83,3 +96,4 @@ const shutdown = (sig: string) => {
 };
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM')); // Railway sends SIGTERM on redeploy
+}
