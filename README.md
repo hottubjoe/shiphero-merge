@@ -34,8 +34,8 @@ Right-click **`.env`** → *Open with* → **Notepad**. Fill in:
 | `DASHBOARD_PASSWORD` | Make one up (at least 12 characters). |
 | `SESSION_SECRET` | Run `start.bat` once with it empty. The app prints a random value you can paste here. |
 | `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET` | partner.tiktokshop.com → **App & Service** → your app → *App key / App secret*. |
-| `SHIPHERO_REFRESH_TOKEN` | ShipHero → **My Account → Developer** → create an API user / token → copy the **refresh token**. |
-| `SHIPHERO_WEBHOOK_SECRET` | Make up a long random string (only needed if you set up webhooks, step 7). |
+| `SHIPHERO_REFRESH_TOKEN` | Open **app.shiphero.com/dashboard/users** → **+ Add Third-Party Developer** → copy the **Refresh Token** it shows. |
+| `SHIPHERO_WEBHOOK_SECRET` | Make up a long random string, letters and numbers only (only needed if you set up webhooks, step 7). |
 
 **Leave `DRY_RUN=true` and `PILOT_MODE=true`.**
 

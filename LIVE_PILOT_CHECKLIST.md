@@ -17,7 +17,7 @@ Do these in order. Stop at the first ✘ and send Claude the details.
 | TikTok app key + secret | You (Partner Center) | in `.env` only |
 | TikTok app scopes: Package Split And Combine, Fulfillment Basic, Order Information, Logistics Basic | You | re-authorize after adding |
 | TikTok shop authorization (auth code → tokens) | You | `npm run tiktok:auth` |
-| ShipHero refresh token | You (ShipHero → Developer) | API user that can read and merge orders |
+| ShipHero refresh token | You (app.shiphero.com/dashboard/users → + Add Third-Party Developer) | API user that can read and merge orders |
 | ShipHero webhook (optional) | You | polling works without it |
 | Your OK to keep the native ShipHero↔TikTok integration **as is** | You | nothing is disconnected or changed |
 
