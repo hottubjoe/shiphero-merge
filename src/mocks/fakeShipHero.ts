@@ -25,6 +25,7 @@ export class FakeShipHero {
   orders = new Map<string, FakeShOrder>();
   shipments: FakeShipment[] = [];
   calls: { op: string; variables: Record<string, unknown> }[] = [];
+  refreshWorks = true;
   fail = { mergeError: false, mergeTimeoutAfterApply: false, mergeTimeoutBeforeApply: false, duplicateLinesOnMerge: false };
   private seq = 100;
 
@@ -93,7 +94,10 @@ export class FakeShipHero {
 
   transport: Transport = async (req: HttpRequest) => {
     const url = new URL(req.url);
-    if (url.pathname === '/auth/refresh') return { status: 200, headers: {}, body: JSON.stringify({ access_token: this.accessToken, expires_in: 2419200 }) };
+    if (url.pathname === '/auth/refresh') {
+      if (!this.refreshWorks) return { status: 401, headers: {}, body: JSON.stringify({ error: 'invalid_grant', error_description: 'Unknown or invalid refresh token.' }) };
+      return { status: 200, headers: {}, body: JSON.stringify({ access_token: this.accessToken, expires_in: 2419200 }) };
+    }
     if (req.headers.authorization !== `Bearer ${this.accessToken}`) return { status: 401, headers: {}, body: JSON.stringify({ errors: [{ message: 'unauthorized' }] }) };
     const { query, variables } = JSON.parse(req.body!);
     const op = (query.match(/(?:query|mutation)\s+(\w+)/) ?? [])[1];

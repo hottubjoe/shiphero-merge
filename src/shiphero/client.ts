@@ -73,8 +73,17 @@ export class ShipHeroClient {
     const refresh = this.o.repo?.getToken('shiphero')?.refresh_token || this.o.refreshToken;
     if (!refresh) throw new Error('SHIPHERO_REFRESH_TOKEN is missing');
     const res = await this.transport({ method: 'POST', url: `${this.o.apiBase}/auth/refresh`, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refresh_token: refresh }) });
-    const json = parseJson(res.body, 'ShipHero auth') as Gql;
-    if (res.status !== 200 || !json.access_token) throw new ApiError('ShipHero token refresh failed', res.status, null, null, json);
+    let json: Gql;
+    try {
+      json = parseJson(res.body, 'ShipHero auth') as Gql;
+    } catch {
+      json = { raw: res.body.slice(0, 200) };
+    }
+    if (res.status !== 200 || !json.access_token) {
+      // Show ShipHero's own reason (never the token itself).
+      const reason = String(json.error_description ?? json.error ?? json.message ?? json.raw ?? '').slice(0, 200);
+      throw new ApiError(`ShipHero token refresh failed (HTTP ${res.status}${reason ? `: ${reason}` : ''}). Check SHIPHERO_REFRESH_TOKEN, or set SHIPHERO_ACCESS_TOKEN to the Bearer Token.`, res.status, null, null, json);
+    }
     const expiresIn = Number(json.expires_in ?? 0);
     this.o.repo?.saveToken('shiphero', {
       access_token: String(json.access_token),
@@ -89,18 +98,31 @@ export class ShipHeroClient {
     const access = saved?.access_token || this.o.accessToken;
     const exp = saved?.access_expires_at ? Date.parse(saved.access_expires_at) : null;
     if (access && (exp === null || exp - this.clock() > 3600_000)) return access;
-    return this.refreshAccessToken();
+    try {
+      return await this.refreshAccessToken();
+    } catch (e) {
+      // Refresh failed but we still have a (bearer) access token that hasn't expired: use it.
+      if (access && (exp === null || exp > this.clock())) return access;
+      throw e;
+    }
   }
+  private forceRefresh = false;
 
   // ------------------------------------------------------------ core
-  async gql<T = Gql>(query: string, variables: Record<string, unknown> = {}): Promise<{ data: T; raw: unknown }> {
-    const token = await this.token();
+  async gql<T = Gql>(query: string, variables: Record<string, unknown> = {}, retried = false): Promise<{ data: T; raw: unknown }> {
+    const token = this.forceRefresh ? await this.refreshAccessToken() : await this.token();
+    this.forceRefresh = false;
     const res = await this.transport({
       method: 'POST',
       url: `${this.o.apiBase}/graphql`,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ query, variables }),
     });
+    // Expired/invalid access token: refresh once and repeat (safe: the request was rejected, not applied).
+    if (res.status === 401 && !retried && (this.o.repo?.getToken('shiphero')?.refresh_token || this.o.refreshToken)) {
+      this.forceRefresh = true;
+      return this.gql<T>(query, variables, true);
+    }
     const json = parseJson(res.body, 'ShipHero GraphQL') as Gql;
     const errors = (json.errors as Gql[] | undefined) ?? [];
     if (res.status === 429 || errors.some((e) => /credits/i.test(String(e.message)))) {

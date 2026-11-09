@@ -217,3 +217,21 @@ test('shop cipher saved by the API check is used when TIKTOK_SHOP_CIPHER is empt
   assert.deepEqual(r.packages, []);
   assert.match(String(h.tt.calls.at(-1)!.path), /combinable_packages/);
 });
+
+test('ShipHero auth: clear reason on bad refresh token, bearer token fallback, auto-refresh on 401', async () => {
+  const { Repo } = await import('../src/db/repo.ts');
+  const { ShipHeroClient } = await import('../src/shiphero/client.ts');
+  const { FakeShipHero } = await import('../src/mocks/fakeShipHero.ts');
+  const sh = new FakeShipHero('GOOD');
+  sh.refreshWorks = false;
+  // only a bad refresh token → readable error that names ShipHero's reason
+  const c1 = new ShipHeroClient({ apiBase: 'https://x', refreshToken: 'BAD', repo: new Repo(':memory:'), transport: sh.transport });
+  await assert.rejects(c1.gql('query Account { account { data { id } } }'), /HTTP 401: Unknown or invalid refresh token/);
+  // bad refresh token + valid bearer token → works
+  const c2 = new ShipHeroClient({ apiBase: 'https://x', refreshToken: 'BAD', accessToken: 'GOOD', repo: new Repo(':memory:'), transport: sh.transport });
+  assert.ok((await c2.gql('query Account { account { data { id } } }')).data);
+  // expired bearer token + good refresh token → refreshes on 401 and retries once
+  sh.refreshWorks = true;
+  const c3 = new ShipHeroClient({ apiBase: 'https://x', refreshToken: 'R', accessToken: 'EXPIRED', repo: new Repo(':memory:'), transport: sh.transport });
+  assert.ok((await c3.gql('query Account { account { data { id } } }')).data);
+});
