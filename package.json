@@ -1,0 +1,25 @@
+{
+  "name": "coldest-merge-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "COLDEST TikTok Shop + ShipHero order consolidation engine",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --import tsx src/index.ts",
+    "demo": "node --disable-warning=ExperimentalWarning --import tsx src/cli/demo.ts",
+    "verify-api": "node --disable-warning=ExperimentalWarning --import tsx src/cli/verify-api.ts",
+    "tiktok:auth": "node --disable-warning=ExperimentalWarning --import tsx src/cli/tiktok-auth.ts",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/workflow.test.ts test/units.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0"
+  }
+}

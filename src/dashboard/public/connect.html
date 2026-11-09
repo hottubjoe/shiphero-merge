@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Connect TikTok: COLDEST Merge Engine</title>
+<style>
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0d1117; color:#e6edf3; font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .box { width:min(460px,92vw); background:#161b22; border:1px solid #30363d; border-radius:12px; padding:28px; }
+  h1 { font-size:18px; margin:0 0 6px; } p { color:#8b949e; margin:0 0 18px; font-size:14px; }
+  button { padding:10px 16px; border:0; border-radius:8px; background:#2f81f7; color:#fff; font-weight:600; font-size:15px; cursor:pointer; }
+  .ok { color:#56d364; } .err { color:#ff7b72; } a { color:#79c0ff; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Connect your TikTok shop</h1>
+  <p id="msg">TikTok sent back an authorization code. Click the button to finish connecting. The code expires within a few minutes.</p>
+  <button id="go">Finish connecting</button>
+  <div id="out" style="margin-top:16px"></div>
+</div>
+<script>
+const code = new URLSearchParams(location.search).get('code');
+const out = document.getElementById('out');
+if (!code) { document.getElementById('go').style.display = 'none'; document.getElementById('msg').textContent = 'No authorization code in this address. Start from the authorization link in TikTok Partner Center.'; }
+document.getElementById('go').onclick = async () => {
+  document.getElementById('go').disabled = true;
+  out.textContent = 'Connecting…';
+  try {
+    const r = await fetch('/api/tiktok/connect', { method: 'POST', headers: { 'content-type': 'application/json', 'x-coldest-csrf': '1' }, body: JSON.stringify({ code }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    history.replaceState(null, '', '/tiktok/callback'); // remove the code from the address bar
+    out.innerHTML = `<p class="ok">✔ Connected${j.sellerName ? ' to ' + j.sellerName.replace(/[<>&]/g, '') : ''}.</p><p>Next: <a href="/#setup">open the dashboard and click "Run API check"</a>.</p>`;
+  } catch (e) {
+    out.innerHTML = `<p class="err">✘ ${String(e.message).replace(/[<>&]/g, '')}</p><p>Authorize again in Partner Center and click the button right away.</p>`;
+    document.getElementById('go').disabled = false;
+  }
+};
+</script>
+</body>
+</html>

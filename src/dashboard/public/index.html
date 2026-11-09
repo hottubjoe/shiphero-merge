@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>COLDEST Merge Engine</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --mute:#8b949e; --blue:#2f81f7; --green:#3fb950; --amber:#d29922; --red:#f85149; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:14px 24px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:16px; letter-spacing:.14em; margin:0; }
+  .badge { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .b-dry { background:#1f6feb33; color:#79c0ff; } .b-live { background:#f8514933; color:#ff7b72; } .b-pilot { background:#d2992233; color:#e3b341; } .b-paused{ background:#8b949e33; color:#c9d1d9; }
+  header .sp { flex:1; }
+  a, button.link { color:var(--mute); background:none; border:0; cursor:pointer; font:inherit; }
+  main { padding:20px 24px 60px; max-width:1300px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .card .k { color:var(--mute); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  .card .v { font-size:26px; font-weight:650; margin-top:4px; }
+  .card .s { color:var(--mute); font-size:12px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--mute); margin:28px 0 10px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:stretch; }
+  .controls { display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  label.t { display:flex; gap:8px; align-items:center; cursor:pointer; }
+  input[type=number] { width:70px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
+  button.btn { background:var(--blue); color:#fff; border:0; border-radius:7px; padding:6px 12px; font-weight:600; cursor:pointer; font-size:13px; }
+  button.btn.sec { background:#21262d; border:1px solid var(--line); color:var(--text); }
+  button.btn.warn { background:#9e6a03; }
+  button.btn:disabled { opacity:.5; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; font-size:13px; }
+  th { color:var(--mute); font-weight:600; font-size:12px; background:#0f141a; }
+  tr:last-child td { border-bottom:0; }
+  tr.click { cursor:pointer; } tr.click:hover td { background:#1c2330; }
+  .st { font-weight:600; font-size:12px; padding:2px 8px; border-radius:6px; white-space:nowrap; }
+  .st-ELIGIBLE,.st-DETECTED{background:#1f6feb22;color:#79c0ff} .st-AWAITING_APPROVAL{background:#d2992233;color:#e3b341}
+  .st-TIKTOK_COMBINED,.st-SHIPHERO_MERGED,.st-READY_TO_FULFILL,.st-SHIPPED{background:#8957e533;color:#d2a8ff}
+  .st-TIKTOK_CONFIRMED{background:#23863633;color:#56d364} .st-EXCEPTION{background:#f8514933;color:#ff7b72} .st-DISSOLVED{background:#8b949e22;color:var(--mute)}
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size:12px; }
+  .mute { color:var(--mute); }
+  .conn { display:flex; gap:8px; align-items:center; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--mute); } .dot.ok{background:var(--green)} .dot.bad{background:var(--red)}
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px; width:min(900px,95vw); max-height:85vh; padding:0; }
+  dialog .hd { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); }
+  dialog .bd { padding:16px 18px; }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; font-size:12px; max-height:260px; overflow:auto; }
+  .note { background:#d2992215; border:1px solid #d2992255; color:#e3b341; padding:10px 14px; border-radius:8px; font-size:13px; margin-top:12px; }
+  #toast { position:fixed; bottom:20px; right:20px; background:#21262d; border:1px solid var(--line); padding:10px 14px; border-radius:8px; display:none; max-width:420px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>COLDEST</h1><span class="mute">Order Merge Engine</span>
+  <span id="modeBadge" class="badge b-dry">DRY RUN</span>
+  <span id="pilotBadge" class="badge b-pilot" style="display:none">PILOT</span>
+  <span id="pausedBadge" class="badge b-paused" style="display:none">PAUSED</span>
+  <span class="sp"></span>
+  <button class="btn sec" id="runNow">Check now</button>
+  <a href="/logout">Sign out</a>
+</header>
+<main>
+  <div class="row">
+    <div class="card conn" style="flex:1"><span class="dot" id="ttDot"></span><div><div class="k">TikTok Shop</div><div id="ttConn" class="s">checking…</div></div></div>
+    <div class="card conn" style="flex:1"><span class="dot" id="shDot"></span><div><div class="k">ShipHero</div><div id="shConn" class="s">checking…</div></div></div>
+    <div class="card conn" style="flex:1"><span class="dot" id="cbDot"></span><div><div class="k">TikTok combine API</div><div id="cbConn" class="s">checking…</div></div></div>
+  </div>
+
+
+  <h2 id="setup">Setup</h2>
+  <div class="card" style="display:grid; gap:14px">
+    <div id="setupList" class="mute">Loading…</div>
+    <div>
+      <div class="k" style="color:var(--mute);font-size:12px">1. TikTok redirect URL: put this in Partner Center → your app → Redirect URL</div>
+      <div class="mono" id="redirectUrl"></div>
+    </div>
+    <div>
+      <div class="k" style="color:var(--mute);font-size:12px">2. Connect TikTok: authorize your shop in Partner Center. You'll come back here automatically. Or paste the code / full address:</div>
+      <div style="display:flex; gap:8px; margin-top:6px">
+        <input id="authCode" placeholder="https://…?code=… or just the code" style="flex:1; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px" />
+        <button class="btn" id="connectBtn">Connect TikTok</button>
+      </div>
+    </div>
+    <div>
+      <div class="k" style="color:var(--mute);font-size:12px">3. Read-only API check: changes nothing; tells us whether TikTok's combine API works for your shop</div>
+      <div style="margin-top:6px"><button class="btn" id="verifyBtn">Run API check</button> <button class="btn sec" id="copyReport" style="display:none">Copy report</button></div>
+      <div id="verifyOut"></div>
+    </div>
+    <div>
+      <div class="k" style="color:var(--mute);font-size:12px">4. ShipHero Shipment Update webhook (optional; shipments are also checked every minute)</div>
+      <div class="mono" id="webhookUrl"></div>
+    </div>
+  </div>
+
+  <h2>Overview</h2>
+  <div class="grid" id="cards"></div>
+
+  <h2>Controls</h2>
+  <div class="card controls">
+    <label class="t"><input type="checkbox" id="c_live" /> Live mode</label>
+    <label class="t"><input type="checkbox" id="c_elig" /> Automatic eligibility checking</label>
+    <label class="t"><input type="checkbox" id="c_auto" /> Automatic combination</label>
+    <label class="t">Wait window <input type="number" id="c_win" min="0" max="1440" /> min</label>
+    <button class="btn warn" id="c_pause">Pause all new merges</button>
+  </div>
+  <div id="notes"></div>
+
+  <h2>Needs your attention</h2>
+  <table><thead><tr><th>Status</th><th>TikTok orders</th><th>Detail</th><th>Updated</th><th></th></tr></thead><tbody id="attention"></tbody></table>
+
+  <h2>All combinations</h2>
+  <table><thead><tr><th>Status</th><th>TikTok orders</th><th>Combined package</th><th>ShipHero</th><th>Tracking</th><th>Window ends</th></tr></thead><tbody id="groups"></tbody></table>
+
+  <h2>Audit history <button class="link" id="loadAudit">(load)</button></h2>
+  <div id="audit"></div>
+</main>
+
+<dialog id="dlg"><div class="hd"><strong id="dlgTitle">Group</strong><button class="btn sec" onclick="dlg.close()">Close</button></div><div class="bd" id="dlgBody"></div></dialog>
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const fmt = (t) => t ? new Date(t).toLocaleString() : '';
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method:'POST', headers:{ 'content-type':'application/json', 'x-coldest-csrf':'1' }, body: JSON.stringify(body) });
+  if (r.status === 401) { location.reload(); return; }
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 5000); }
+const stepLabel = { combine:'Combine in TikTok', merge:'Merge in ShipHero', ship:'Send tracking to TikTok' };
+
+let S = null;
+async function load() {
+  S = await api('/api/status');
+  const m = S.metrics, c = S.config;
+  $('modeBadge').textContent = S.dryRun ? 'DRY RUN' : 'LIVE';
+  $('modeBadge').className = 'badge ' + (S.dryRun ? 'b-dry' : 'b-live');
+  $('pilotBadge').style.display = c.pilotMode ? '' : 'none';
+  $('pausedBadge').style.display = S.settings.paused ? '' : 'none';
+  const n = (s) => m.byState[s] || 0;
+  const cards = [
+    ['Unshipped TikTok orders', S.unshipped ?? '—', 'awaiting shipment'],
+    ['Eligible combinations', n('ELIGIBLE') + n('DETECTED'), 'waiting for window'],
+    ['Awaiting approval', n('AWAITING_APPROVAL'), 'needs your click'],
+    ['Combined in TikTok', n('TIKTOK_COMBINED'), ''],
+    ['Merged in ShipHero', n('SHIPHERO_MERGED') + n('READY_TO_FULFILL'), 'ready for warehouse'],
+    ['Label created / shipped', n('SHIPPED'), 'tracking pending'],
+    ['Tracking confirmed', n('TIKTOK_CONFIRMED'), 'done'],
+    ['Exceptions', n('EXCEPTION'), 'review needed'],
+    ['Labels avoided', m.labelsAvoided, m.simulatedAvoided ? `+${m.simulatedAvoided} simulated` : 'real, confirmed'],
+    ['Shipping savings', m.estimatedSavings == null ? '—' : '$' + m.estimatedSavings.toFixed(2), m.estimatedSavings == null ? 'set AVG_SINGLE_LABEL_COST' : 'estimated'],
+  ];
+  $('cards').innerHTML = cards.map(([k, v, s]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+
+  $('c_live').checked = !S.dryRun; $('c_live').disabled = c.envDryRun;
+  $('c_elig').checked = S.settings.autoEligibility;
+  $('c_auto').checked = S.settings.autoCombine; $('c_auto').disabled = c.pilotMode;
+  $('c_win').value = S.settings.windowMinutes;
+  $('c_pause').textContent = S.settings.paused ? 'Resume merges' : 'Pause all new merges';
+  const notes = [];
+  if (c.envDryRun) notes.push('Live mode is locked because DRY_RUN=true in your .env file. Nothing is being changed in TikTok or ShipHero.');
+  if (c.pilotMode) notes.push(`Pilot mode: every change needs your approval, groups must be exactly 2 orders, and only these orders are allowed: ${c.pilotOrderIds.join(', ') || '(none set)'}.`);
+  if (c.trackingMode === 'native_verify') notes.push('Tracking mode: ShipHero\'s own TikTok integration sends tracking; this app only verifies it.');
+  $('notes').innerHTML = notes.map((t) => `<div class="note">${esc(t)}</div>`).join('');
+
+  const att = S.groups.filter((g) => g.state === 'AWAITING_APPROVAL' || g.state === 'EXCEPTION');
+  $('attention').innerHTML = att.length ? att.map((g) => `<tr>
+      <td><span class="st st-${g.state}">${g.state === 'AWAITING_APPROVAL' ? 'APPROVE: ' + esc(stepLabel[g.pending_step] || g.pending_step) : 'EXCEPTION'}</span></td>
+      <td class="mono">${g.tiktok_order_ids.map(esc).join('<br>')}</td>
+      <td>${g.state === 'EXCEPTION' ? esc(g.exception_reason) : approvalText(g)}</td>
+      <td class="mute">${fmt(g.updated_at)}</td>
+      <td style="white-space:nowrap">${g.state === 'AWAITING_APPROVAL'
+        ? `<button class="btn" onclick="approve('${g.id}','${g.pending_step}')">Approve</button>`
+        : `<button class="btn sec" onclick="retry('${g.id}')">Retry</button>`}
+        <button class="btn sec" onclick="openGroup('${g.id}')">Details</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="mute">Nothing needs attention.</td></tr>';
+
+  $('groups').innerHTML = S.groups.length ? S.groups.map((g) => `<tr class="click" onclick="openGroup('${g.id}')">
+      <td><span class="st st-${g.state}">${esc(g.state)}</span>${g.simulated ? ' <span class="mute">(simulated)</span>' : ''}</td>
+      <td class="mono">${g.tiktok_order_ids.map(esc).join('<br>')}</td>
+      <td class="mono">${esc(g.combined_package_id || '—')}</td>
+      <td class="mono">${esc((g.shiphero_orders || []).map((o) => o.orderNumber).join(', ') || '—')}</td>
+      <td class="mono">${esc(g.tracking_number || '—')}${g.tracking_source ? ' <span class="mute">(' + esc(g.tracking_source) + ')</span>' : ''}</td>
+      <td class="mute">${fmt(g.window_ends_at)}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="mute">No combinations found yet.</td></tr>';
+}
+function approvalText(g) {
+  if (g.pending_step === 'combine') return `Combine ${g.tiktok_order_ids.length} TikTok orders into one package (TikTok-confirmed eligible).`;
+  if (g.pending_step === 'merge') return `Merge ShipHero orders ${(g.shiphero_orders || []).map((o) => esc(o.orderNumber)).join(' + ')} (TikTok package ${esc(g.combined_package_id)} confirmed).`;
+  if (g.pending_step === 'ship') return `Send tracking ${esc(g.tracking_number)} (${esc(g.carrier)}) to TikTok package ${esc(g.combined_package_id)}.`;
+  return '';
+}
+async function loadConnections(refresh) {
+  try {
+    const c = await api('/api/connections' + (refresh ? '?refresh=1' : ''));
+    const set = (dot, el, v) => { $(dot).className = 'dot ' + (v?.ok ? 'ok' : 'bad'); $(el).textContent = v?.detail || 'not checked'; };
+    set('ttDot', 'ttConn', c.tiktok); set('shDot', 'shConn', c.shiphero); set('cbDot', 'cbConn', c.combineApi);
+  } catch (e) { $('ttConn').textContent = e.message; }
+}
+async function approve(id, step) {
+  if (!confirm(`Approve: ${stepLabel[step]}?${S.dryRun ? '\n\n(Dry run — this will only be simulated.)' : '\n\nThis WILL change live data.'}`)) return;
+  try { await api(`/api/groups/${id}/approve`, { step }); toast('Approved.'); } catch (e) { toast(e.message); }
+  load();
+}
+async function retry(id) {
+  if (!confirm('Retry this group from the step that failed?')) return;
+  try { await api(`/api/groups/${id}/retry`, {}); toast('Retrying.'); } catch (e) { toast(e.message); }
+  load();
+}
+async function openGroup(id) {
+  const d = await api('/api/groups/' + id);
+  $('dlgTitle').textContent = `${d.group.state} — ${d.group.tiktok_order_ids.join(', ')}`;
+  $('dlgBody').innerHTML = `
+    <p class="mute">Group ${esc(d.group.id)}</p>
+    <h2>Details</h2><pre>${esc(JSON.stringify(d.group, null, 2))}</pre>
+    <h2>Remote changes (operations)</h2>
+    <table><thead><tr><th>Kind</th><th>Status</th><th>Request ID</th><th>When</th></tr></thead><tbody>
+      ${d.operations.map((o) => `<tr><td>${esc(o.kind)}</td><td>${esc(o.status)}${o.dry_run ? ' (dry run)' : ''}</td><td class="mono">${esc(o.request_id || '')}</td><td class="mute">${fmt(o.created_at)}</td></tr>`).join('') || '<tr><td colspan="4" class="mute">none</td></tr>'}
+    </tbody></table>
+    <h2>Audit trail</h2>
+    <table><tbody>${d.audit.map((a) => `<tr><td class="mute" style="white-space:nowrap">${fmt(a.ts)}</td><td>${esc(a.action)}</td><td class="mono">${esc(a.actor)}</td><td class="mono">${esc(a.detail ? JSON.stringify(a.detail) : '')}</td></tr>`).join('')}</tbody></table>`;
+  $('dlg').showModal();
+}
+async function setSetting(patch) { try { await api('/api/settings', patch); } catch (e) { toast(e.message); } load(); }
+$('c_live').onchange = (e) => {
+  if (e.target.checked && !confirm('Switch to LIVE mode? Approved steps will change real TikTok and ShipHero data.')) { e.target.checked = false; return; }
+  setSetting({ dryRun: !e.target.checked });
+};
+$('c_elig').onchange = (e) => setSetting({ autoEligibility: e.target.checked });
+$('c_auto').onchange = (e) => setSetting({ autoCombine: e.target.checked });
+$('c_win').onchange = (e) => setSetting({ windowMinutes: Number(e.target.value) });
+$('c_pause').onclick = () => setSetting({ paused: !S.settings.paused });
+$('runNow').onclick = async () => { $('runNow').disabled = true; try { await api('/api/run-now', {}); toast('Check complete.'); } catch (e) { toast(e.message); } $('runNow').disabled = false; load(); };
+$('loadAudit').onclick = async () => {
+  const a = await api('/api/audit');
+  $('audit').innerHTML = `<table><thead><tr><th>When</th><th>Action</th><th>Who</th><th>Group</th><th>Detail</th></tr></thead><tbody>${a.audit.map((x) => `<tr><td class="mute" style="white-space:nowrap">${fmt(x.ts)}</td><td>${esc(x.action)}${x.dry_run ? ' <span class="mute">(dry)</span>' : ''}</td><td class="mono">${esc(x.actor)}</td><td class="mono">${esc((x.group_id || '').slice(0, 8))}</td><td class="mono">${esc(x.detail ? JSON.stringify(x.detail).slice(0, 220) : '')}</td></tr>`).join('')}</tbody></table>`;
+};
+
+let lastReport = '';
+function renderVerify(v) {
+  if (!v) { $('verifyOut').innerHTML = '<p class="mute">Not run yet.</p>'; return; }
+  lastReport = v.markdown; $('copyReport').style.display = '';
+  let sec = '';
+  $('verifyOut').innerHTML = `<p class="mute">Last run ${fmt(v.at)}</p>` + v.lines.map((l) => {
+    const h = l.section !== sec ? `<div style="margin-top:8px;font-weight:600">${esc(sec = l.section)}</div>` : '';
+    return h + `<div>${l.ok === null ? '•' : l.ok ? '<span style="color:var(--green)">✔</span>' : '<span style="color:var(--red)">✘</span>'} ${esc(l.text)}</div>`;
+  }).join('') + `<p style="margin-top:10px"><strong>${esc(v.verdict)}</strong></p>`;
+}
+async function loadSetup() {
+  const s = await api('/api/setup');
+  $('redirectUrl').textContent = location.origin + '/tiktok/callback';
+  $('webhookUrl').textContent = location.origin + '/webhooks/shiphero/shipment-update?token=YOUR_SHIPHERO_WEBHOOK_SECRET';
+  const item = (ok, t) => `<div>${ok ? '<span style="color:var(--green)">✔</span>' : '<span style="color:var(--red)">✘</span>'} ${esc(t)}</div>`;
+  $('setupList').innerHTML = [
+    item(s.tiktokAppKeySet, 'TikTok app key & secret ' + (s.tiktokAppKeySet ? 'set' : 'missing (add TIKTOK_APP_KEY / TIKTOK_APP_SECRET in your hosting Variables)')),
+    item(s.tiktokConnected, s.tiktokConnected ? 'TikTok connected' : 'TikTok not connected yet (step 2)'),
+    item(!!s.shopName, s.shopName ? 'Shop: ' + s.shopName : 'Shop not selected yet (step 3 does this)'),
+    item(s.shipheroSet, 'ShipHero token ' + (s.shipheroSet ? 'set' : 'missing (add SHIPHERO_REFRESH_TOKEN)')),
+    item(s.problems.length === 0, s.problems.length ? 'Background checks paused until setup is complete' : 'Background checks running'),
+  ].join('');
+  renderVerify(s.lastVerification);
+}
+$('connectBtn').onclick = async () => {
+  const code = $('authCode').value.trim(); if (!code) return toast('Paste the code first.');
+  $('connectBtn').disabled = true;
+  try { const r = await api('/api/tiktok/connect', { code }); toast('TikTok connected' + (r.sellerName ? ' to ' + r.sellerName : '') + '. Now run the API check.'); $('authCode').value = ''; }
+  catch (e) { toast(e.message); }
+  $('connectBtn').disabled = false; loadSetup();
+};
+$('verifyBtn').onclick = async () => {
+  $('verifyBtn').disabled = true; $('verifyOut').innerHTML = '<p class="mute">Checking… (about 10–30 seconds)</p>';
+  try { renderVerify(await api('/api/verify', {})); } catch (e) { $('verifyOut').innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
+  $('verifyBtn').disabled = false; loadSetup(); loadConnections(true);
+};
+$('copyReport').onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast('Report copied. Paste it to Claude.'); } catch { toast('Could not copy. Select the text manually.'); } };
+loadSetup();
+load(); loadConnections(false);
+setInterval(load, 15000);
+</script>
+</body>
+</html>
