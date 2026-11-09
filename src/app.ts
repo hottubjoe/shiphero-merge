@@ -1,4 +1,5 @@
 /** Builds the real application objects from .env settings. */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadDotEnv, readConfig, type Config } from './config.ts';
@@ -14,6 +15,15 @@ export function buildApp(opts: { quiet?: boolean } = {}) {
   const config = readConfig();
   const logger = new Logger(config.logFile, opts.quiet);
   const repo = new Repo(config.databaseFile);
+  // No SESSION_SECRET set? Create a random one once and keep it in the (private) database.
+  if (!config.sessionSecret) {
+    let secret = repo.getSetting<string>('session_secret', '');
+    if (!secret) {
+      secret = crypto.randomBytes(32).toString('hex');
+      repo.setSetting('session_secret', secret);
+    }
+    config.sessionSecret = secret;
+  }
   const tiktok = new TikTokClient({ ...config.tiktok, repo, logger });
   const shiphero = new ShipHeroClient({ ...config.shiphero, repo, logger });
   const engine = new Engine({ repo, tiktok, shiphero, config, logger });

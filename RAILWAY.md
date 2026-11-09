@@ -29,8 +29,6 @@ BLOCKED_CARRIERS=USPS
 
 # Dashboard login: at least 16 characters, unique to this app
 DASHBOARD_PASSWORD=
-# 64 random characters. Generate one at https://www.random.org/strings/ or ask Claude
-SESSION_SECRET=
 
 # TikTok (Partner Center → App & Service → your app)
 TIKTOK_APP_KEY=
