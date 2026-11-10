@@ -235,3 +235,30 @@ test('ShipHero auth: clear reason on bad refresh token, bearer token fallback, a
   const c3 = new ShipHeroClient({ apiBase: 'https://x', refreshToken: 'R', accessToken: 'EXPIRED', repo: new Repo(':memory:'), transport: sh.transport });
   assert.ok((await c3.gql('query Account { account { data { id } } }')).data);
 });
+
+test('Connect ShipHero from the dashboard: password used once, never stored; bad env refresh token is overridden', async () => {
+  const { Repo } = await import('../src/db/repo.ts');
+  const { ShipHeroClient } = await import('../src/shiphero/client.ts');
+  const { FakeShipHero } = await import('../src/mocks/fakeShipHero.ts');
+  const h = createHarness();
+  const sh = new FakeShipHero('GOOD');
+  sh.refreshWorks = false; // the refresh token in Railway variables is bad
+  const repo = new Repo(':memory:');
+  const client = new ShipHeroClient({ apiBase: 'https://x', refreshToken: 'BAD-ENV-TOKEN', repo, transport: sh.transport });
+  const { srv, base } = await listen(createDashboardHandler({ engine: h.engine, password: 'right-password-123456', sessionSecret: 's'.repeat(40), webhookSecret: 'w', connectShipHero: (u, p) => client.loginWithPassword(u, p) }));
+  try {
+    const login = await fetch(`${base}/login`, { method: 'POST', body: 'password=right-password-123456', headers: { 'content-type': 'application/x-www-form-urlencoded' }, redirect: 'manual' });
+    const cookie = login.headers.get('set-cookie')!.split(';')[0];
+    const post = (b: unknown) => fetch(`${base}/api/shiphero/connect`, { method: 'POST', headers: { cookie, 'x-coldest-csrf': '1' }, body: JSON.stringify(b) });
+    const bad = await post({ username: 'ops@coldest.com', password: 'nope' });
+    assert.equal(bad.status, 400);
+    assert.match((await bad.json()).error, /Wrong email or password/);
+    assert.equal((await post({ username: 'ops@coldest.com', password: 'right-pw' })).status, 200);
+    assert.equal(repo.getToken('shiphero')!.refresh_token, 'NEW-REFRESH');
+    const everything = JSON.stringify(repo.db.prepare('SELECT * FROM tokens').all()) + JSON.stringify(h.repo.listAudit());
+    assert.doesNotMatch(everything, /right-pw/, 'password never stored');
+    assert.ok((await client.gql('query Account { account { data { id } } }')).data, 'API works with the new tokens');
+  } finally {
+    srv.close();
+  }
+});

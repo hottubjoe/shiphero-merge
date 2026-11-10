@@ -128,12 +128,12 @@ export function dashboardProblems(c: Config): string[] {
  * Problems that stop background processing. Tokens and the shop cipher may live in the
  * database (connected from the dashboard) instead of environment variables.
  */
-export function connectionProblems(c: Config, stored: { tiktokToken: boolean; shopCipher: boolean }): string[] {
+export function connectionProblems(c: Config, stored: { tiktokToken: boolean; shopCipher: boolean; shipheroToken?: boolean }): string[] {
   const p: string[] = [];
   if (!c.tiktok.appKey || !c.tiktok.appSecret) p.push('TIKTOK_APP_KEY and TIKTOK_APP_SECRET are missing.');
   if (!c.tiktok.accessToken && !c.tiktok.refreshToken && !stored.tiktokToken) p.push('TikTok is not connected yet (dashboard → Connect TikTok).');
   if (!c.tiktok.shopCipher && !stored.shopCipher) p.push('TikTok shop not selected yet (dashboard → Run API check).');
-  if (!c.shiphero.refreshToken && !c.shiphero.accessToken) p.push('SHIPHERO_REFRESH_TOKEN is missing.');
+  if (!c.shiphero.refreshToken && !c.shiphero.accessToken && !stored.shipheroToken) p.push('ShipHero is not connected yet (dashboard → Connect ShipHero).');
   if (!c.dryRun && c.pilotMode && c.pilotOrderIds.length !== 2) p.push('Live pilot requires exactly 2 PILOT_ORDER_IDS.');
   return p;
 }

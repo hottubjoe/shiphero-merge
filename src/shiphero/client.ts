@@ -69,9 +69,45 @@ export class ShipHeroClient {
   }
 
   // ------------------------------------------------------------ auth
+  hasStoredToken(): boolean {
+    return !!this.o.repo?.getToken('shiphero')?.access_token;
+  }
+
+  /**
+   * ShipHero's documented way to get API tokens: POST /auth/token with the account's username + password.
+   * The password is used for this one request only and is never stored or logged; only the tokens are kept.
+   */
+  async loginWithPassword(username: string, password: string): Promise<{ expiresAt: string | null }> {
+    const res = await this.transport({
+      method: 'POST',
+      url: `${this.o.apiBase}/auth/token`,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    let json: Gql;
+    try {
+      json = parseJson(res.body, 'ShipHero auth') as Gql;
+    } catch {
+      json = { raw: res.body.slice(0, 200) };
+    }
+    if (res.status !== 200 || !json.access_token) {
+      const reason = String(json.error_description ?? json.error ?? json.message ?? json.raw ?? '').slice(0, 200);
+      throw new ApiError(`ShipHero sign-in failed (HTTP ${res.status}${reason ? `: ${reason}` : ''})`, res.status, null, null, null);
+    }
+    const expiresIn = Number(json.expires_in ?? 0);
+    const expiresAt = expiresIn ? new Date(this.clock() + expiresIn * 1000).toISOString() : null;
+    this.o.repo?.saveToken('shiphero', {
+      access_token: String(json.access_token),
+      refresh_token: json.refresh_token ? String(json.refresh_token) : null,
+      access_expires_at: expiresAt,
+    });
+    this.o.logger?.info('ShipHero connected via sign-in', { access_expires_at: expiresAt });
+    return { expiresAt };
+  }
+
   async refreshAccessToken(): Promise<string> {
     const refresh = this.o.repo?.getToken('shiphero')?.refresh_token || this.o.refreshToken;
-    if (!refresh) throw new Error('SHIPHERO_REFRESH_TOKEN is missing');
+    if (!refresh) throw new Error('ShipHero is not connected (dashboard → Connect ShipHero)');
     const res = await this.transport({ method: 'POST', url: `${this.o.apiBase}/auth/refresh`, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refresh_token: refresh }) });
     let json: Gql;
     try {

@@ -123,8 +123,8 @@ export async function runVerification(app: { config: Config; repo: Repo; tiktok:
 
   // ---------------------------------------------------------------- ShipHero
   section = 'ShipHero';
-  if (!config.shiphero.refreshToken && !config.shiphero.accessToken) {
-    line(false, 'SHIPHERO_REFRESH_TOKEN is not set');
+  if (!config.shiphero.refreshToken && !config.shiphero.accessToken && !shiphero.hasStoredToken()) {
+    line(false, 'ShipHero is not connected yet (dashboard → Connect ShipHero)');
   } else {
     try {
       const r = await shiphero.gql('query Account { account { request_id data { id email } } }');

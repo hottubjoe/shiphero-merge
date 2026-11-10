@@ -34,7 +34,7 @@ DASHBOARD_PASSWORD=
 TIKTOK_APP_KEY=
 TIKTOK_APP_SECRET=
 
-# ShipHero: app.shiphero.com/dashboard/users → + Add Third-Party Developer → copy the Refresh Token
+# ShipHero: optional. Easiest is dashboard → Setup → Connect ShipHero (sign in once)
 SHIPHERO_REFRESH_TOKEN=
 # Make up a long random string (letters and numbers only); it goes into the ShipHero webhook address (step 6)
 SHIPHERO_WEBHOOK_SECRET=

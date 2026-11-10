@@ -83,6 +83,14 @@
       </div>
     </div>
     <div>
+      <div class="k" style="color:var(--mute);font-size:12px">2b. Connect ShipHero: sign in with your ShipHero login once. Your password is used only for this and is never saved.</div>
+      <form id="shForm" style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap" autocomplete="off">
+        <input id="shUser" type="email" placeholder="ShipHero email" autocomplete="off" style="flex:1; min-width:200px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px" />
+        <input id="shPass" type="password" placeholder="ShipHero password" autocomplete="new-password" style="flex:1; min-width:200px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px" />
+        <button class="btn" id="shBtn" type="submit">Connect ShipHero</button>
+      </form>
+    </div>
+    <div>
       <div class="k" style="color:var(--mute);font-size:12px">3. Read-only API check: changes nothing; tells us whether TikTok's combine API works for your shop</div>
       <div style="margin-top:6px"><button class="btn" id="verifyBtn">Run API check</button> <button class="btn sec" id="copyReport" style="display:none">Copy report</button></div>
       <div id="verifyOut"></div>
@@ -259,7 +267,7 @@ async function loadSetup() {
     item(s.tiktokAppKeySet, 'TikTok app key & secret ' + (s.tiktokAppKeySet ? 'set' : 'missing (add TIKTOK_APP_KEY / TIKTOK_APP_SECRET in your hosting Variables)')),
     item(s.tiktokConnected, s.tiktokConnected ? 'TikTok connected' : 'TikTok not connected yet (step 2)'),
     item(!!s.shopName, s.shopName ? 'Shop: ' + s.shopName : 'Shop not selected yet (step 3 does this)'),
-    item(s.shipheroSet, 'ShipHero token ' + (s.shipheroSet ? 'set' : 'missing (add SHIPHERO_REFRESH_TOKEN)')),
+    item(s.shipheroSet, s.shipheroSet ? 'ShipHero connected (or token set)' : 'ShipHero not connected yet (step 2b)'),
     item(s.problems.length === 0, s.problems.length ? 'Background checks paused until setup is complete' : 'Background checks running'),
   ].join('');
   renderVerify(s.lastVerification);
@@ -270,6 +278,15 @@ $('connectBtn').onclick = async () => {
   try { const r = await api('/api/tiktok/connect', { code }); toast('TikTok connected' + (r.sellerName ? ' to ' + r.sellerName : '') + '. Now run the API check.'); $('authCode').value = ''; }
   catch (e) { toast(e.message); }
   $('connectBtn').disabled = false; loadSetup();
+};
+$('shForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const username = $('shUser').value.trim(), password = $('shPass').value;
+  if (!username || !password) return toast('Enter your ShipHero email and password.');
+  $('shBtn').disabled = true;
+  try { await api('/api/shiphero/connect', { username, password }); toast('ShipHero connected. Now run the API check.'); }
+  catch (e) { toast(e.message); }
+  $('shPass').value = ''; $('shBtn').disabled = false; loadSetup();
 };
 $('verifyBtn').onclick = async () => {
   $('verifyBtn').disabled = true; $('verifyOut').innerHTML = '<p class="mute">Checking… (about 10–30 seconds)</p>';

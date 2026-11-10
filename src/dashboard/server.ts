@@ -30,6 +30,8 @@ export interface DashboardOptions {
   /** Exchange a TikTok authorization code for tokens (stored in the database). */
   connectTikTok?: (code: string) => Promise<{ sellerName: string | null; access_expires_at: string | null }>;
   setupInfo?: () => Record<string, unknown>;
+  /** Sign in to ShipHero once; only the returned tokens are stored. */
+  connectShipHero?: (username: string, password: string) => Promise<{ expiresAt: string | null }>;
   /** Behind a proxy (Railway): take the visitor IP from X-Forwarded-For. */
   trustProxy?: boolean;
   /** Mark the login cookie Secure (HTTPS only). */
@@ -210,6 +212,14 @@ export function createDashboardHandler(o: DashboardOptions) {
         const r = await o.connectTikTok(decodeURIComponent(clean));
         e.repo.audit(null, actor, 'tiktok_connected', e.isDryRun(), { seller: r.sellerName, expires: r.access_expires_at });
         return send(res, 200, r);
+      }
+      if (url.pathname === '/api/shiphero/connect' && req.method === 'POST') {
+        if (!o.connectShipHero) return send(res, 400, { error: 'not available' });
+        const { username, password } = JSON.parse((await readBody(req, 10_000)) || '{}') as { username?: string; password?: string };
+        if (!username || !password) return send(res, 400, { error: 'Enter your ShipHero email and password' });
+        const r = await o.connectShipHero(String(username).trim(), String(password));
+        e.repo.audit(null, actor, 'shiphero_connected', e.isDryRun(), { expires: r.expiresAt }); // no username/password in the audit trail
+        return send(res, 200, { ok: true, expiresAt: r.expiresAt });
       }
       if (url.pathname === '/api/audit' && req.method === 'GET') return send(res, 200, { audit: e.repo.listAudit(undefined, 500), operations: e.repo.listOps() });
       return send(res, 404, { error: 'not found' });

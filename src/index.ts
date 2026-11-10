@@ -7,7 +7,7 @@ import { startServers } from './dashboard/server.ts';
 import { runVerification } from './verify.ts';
 
 const app = buildApp();
-const { config, engine, logger, repo, tiktok } = app;
+const { config, engine, logger, repo, tiktok, shiphero } = app;
 
 const dashProblems = dashboardProblems(config);
 if (dashProblems.length) {
@@ -30,7 +30,7 @@ if (dashProblems.length) {
 
 function startApp() {
 
-const problemsNow = () => connectionProblems(config, { tiktokToken: tiktok.hasStoredToken(), shopCipher: !!tiktok.shopCipher() });
+const problemsNow = () => connectionProblems(config, { tiktokToken: tiktok.hasStoredToken(), shopCipher: !!tiktok.shopCipher(), shipheroToken: shiphero.hasStoredToken() });
 
 startServers(
   {
@@ -47,11 +47,12 @@ startServers(
       const t = await tiktok.exchangeAuthCode(code);
       return { sellerName: t.sellerName, access_expires_at: t.access_expires_at };
     },
+    connectShipHero: (username, password) => shiphero.loginWithPassword(username, password),
     setupInfo: () => ({
       tiktokAppKeySet: !!(config.tiktok.appKey && config.tiktok.appSecret),
       tiktokConnected: !!(config.tiktok.accessToken || config.tiktok.refreshToken || tiktok.hasStoredToken()),
       shopName: repo.getSetting<{ name: string } | null>('tiktok_shop', null)?.name ?? (config.tiktok.shopCipher ? 'set by TIKTOK_SHOP_CIPHER' : null),
-      shipheroSet: !!(config.shiphero.refreshToken || config.shiphero.accessToken),
+      shipheroSet: !!(config.shiphero.refreshToken || config.shiphero.accessToken || shiphero.hasStoredToken()),
       webhookSecretSet: !!config.shiphero.webhookSecret,
       problems: problemsNow(),
     }),

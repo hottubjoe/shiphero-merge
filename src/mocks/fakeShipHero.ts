@@ -94,6 +94,11 @@ export class FakeShipHero {
 
   transport: Transport = async (req: HttpRequest) => {
     const url = new URL(req.url);
+    if (url.pathname === '/auth/token') {
+      const b = JSON.parse(req.body ?? '{}');
+      if (b.username !== 'ops@coldest.com' || b.password !== 'right-pw') return { status: 403, headers: {}, body: JSON.stringify({ error: 'access_denied', error_description: 'Wrong email or password.' }) };
+      return { status: 200, headers: {}, body: JSON.stringify({ access_token: this.accessToken, refresh_token: 'NEW-REFRESH', expires_in: 2419200, token_type: 'Bearer' }) };
+    }
     if (url.pathname === '/auth/refresh') {
       if (!this.refreshWorks) return { status: 401, headers: {}, body: JSON.stringify({ error: 'invalid_grant', error_description: 'Unknown or invalid refresh token.' }) };
       return { status: 200, headers: {}, body: JSON.stringify({ access_token: this.accessToken, expires_in: 2419200 }) };
