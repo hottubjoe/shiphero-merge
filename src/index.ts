@@ -49,11 +49,14 @@ startServers(
     },
     connectShipHero: (username, password) => shiphero.loginWithPassword(username, password),
     setupInfo: () => ({
+      // US seller authorization link (official format). Only shown when TIKTOK_SERVICE_ID is set.
+      tiktokAuthorizeUrl: config.tiktok.serviceId ? `https://services.tiktokshops.us/open/authorize?service_id=${encodeURIComponent(config.tiktok.serviceId)}` : null,
       tiktokAppKeySet: !!(config.tiktok.appKey && config.tiktok.appSecret),
       tiktokConnected: !!(config.tiktok.accessToken || config.tiktok.refreshToken || tiktok.hasStoredToken()),
       shopName: repo.getSetting<{ name: string } | null>('tiktok_shop', null)?.name ?? (config.tiktok.shopCipher ? 'set by TIKTOK_SHOP_CIPHER' : null),
       shipheroSet: !!(config.shiphero.refreshToken || config.shiphero.accessToken || shiphero.hasStoredToken()),
       webhookSecretSet: !!config.shiphero.webhookSecret,
+      webhookPath: `/webhooks/shiphero/shipment-update?token=${encodeURIComponent(config.shiphero.webhookSecret)}`,
       problems: problemsNow(),
     }),
   },

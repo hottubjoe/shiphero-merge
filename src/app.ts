@@ -24,6 +24,16 @@ export function buildApp(opts: { quiet?: boolean } = {}) {
     }
     config.sessionSecret = secret;
   }
+  // No SHIPHERO_WEBHOOK_SECRET set? Same idea: one random secret, kept in the database and shown
+  // (inside the password-protected dashboard) as part of the webhook address to give ShipHero.
+  if (!config.shiphero.webhookSecret) {
+    let secret = repo.getSetting<string>('shiphero_webhook_secret', '');
+    if (!secret) {
+      secret = crypto.randomBytes(24).toString('hex');
+      repo.setSetting('shiphero_webhook_secret', secret);
+    }
+    config.shiphero.webhookSecret = secret;
+  }
   const tiktok = new TikTokClient({ ...config.tiktok, repo, logger });
   const shiphero = new ShipHeroClient({ ...config.shiphero, repo, logger });
   const engine = new Engine({ repo, tiktok, shiphero, config, logger });

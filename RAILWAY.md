@@ -33,10 +33,12 @@ DASHBOARD_PASSWORD=
 # TikTok (Partner Center → App & Service → your app)
 TIKTOK_APP_KEY=
 TIKTOK_APP_SECRET=
+# Optional: your app's Service ID (same page). Shows a one-click authorization button in the dashboard.
+TIKTOK_SERVICE_ID=
 
 # ShipHero: optional. Easiest is dashboard → Setup → Connect ShipHero (sign in once)
 SHIPHERO_REFRESH_TOKEN=
-# Make up a long random string (letters and numbers only); it goes into the ShipHero webhook address (step 6)
+# Optional: leave empty and the app creates one; the dashboard then shows the full webhook address (step 6)
 SHIPHERO_WEBHOOK_SECRET=
 SHIPHERO_TIKTOK_ID_FIELD=partner_order_id
 
@@ -50,7 +52,7 @@ Railway redeploys automatically. You do **not** need `PORT`, `HOST` or `DATABASE
 ## 4. Get your web address
 1. Service → **Settings → Networking → Generate Domain**.
 2. You'll get something like `https://shiphero-merge-production.up.railway.app`. Open it and sign in with your `DASHBOARD_PASSWORD`.
-3. Optional: Service → **Settings → Healthcheck Path** = `/healthz`.
+3. The health check (`/healthz`) is already set up by the `railway.json` file in the repo.
 
 ## 5. Connect TikTok and run the check (from the dashboard)
 1. Dashboard → **Setup** box. Copy the **TikTok redirect URL** shown there (`https://YOUR-ADDRESS/tiktok/callback`).
@@ -61,10 +63,9 @@ Railway redeploys automatically. You do **not** need `PORT`, `HOST` or `DATABASE
 4. Click **Run API check**. It changes nothing. Then click **Copy report** and paste it to Claude.
 
 ## 6. ShipHero shipment webhook (optional)
-The app already checks ShipHero for shipments every minute. For instant updates, add a **Shipment Update** webhook in ShipHero with this URL:
-```
-https://YOUR-ADDRESS/webhooks/shiphero/shipment-update?token=YOUR_SHIPHERO_WEBHOOK_SECRET
-```
+The app already checks ShipHero for shipments every minute. For instant updates, copy the full webhook address
+from dashboard → Setup → step 4 (it already contains the secret token) and add it in ShipHero as a
+**Shipment Update** webhook.
 
 ## Updating
 Every change pushed to the GitHub repo deploys automatically. Each redeploy has a few seconds of downtime (one copy with a volume). Nothing is lost: interrupted work is resumed safely on start.

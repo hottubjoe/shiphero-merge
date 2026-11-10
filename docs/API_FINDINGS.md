@@ -1,6 +1,6 @@
 # API findings (US shop): verified vs. still unverified
 
-Researched 2026-11-09 from TikTok Shop Partner Center, ShipHero developer docs and ShipHero help center.
+Researched 2026-11-09, re-checked 2026-11-10 from TikTok Shop Partner Center, ShipHero developer docs and ShipHero help center.
 The TikTok reference pages are JavaScript-rendered, so field-level details were read from indexed copies
 of the official pages. Anything not confirmed is marked **[VERIFY]** in the code and is checked by
 `npm run verify-api` against your real shop before going live.
@@ -10,7 +10,8 @@ of the official pages. Anything not confirmed is marked **[VERIFY]** in the code
 | What | Status |
 |---|---|
 | `GET /fulfillment/202309/combinable_packages/search`, scope **Package Split And Combine** (`seller.fulfillment.package.write`) | Path and scope confirmed in official docs |
-| `POST /fulfillment/202309/packages/combine`, body `combinable_packages[]` (each item identifies a package and can list order IDs), same scope | Path, scope and top-level field confirmed. Item field names `id` / `order_ids` and response `packages[]` / `errors[]` are **[VERIFY]** |
+| `POST /fulfillment/202309/packages/combine`, body `combinable_packages[{ id, order_ids[] }]`, same scope | Path, scope and request body confirmed from the official curl example (re-checked 2026-11-10). Response `errors[{ code, message, detail{ package_id } }]` confirmed from the official example (e.g. code 10007014 "fulfillment not allow combine package"). Response `packages[{ id, order_ids }]` matches the sibling Uncombine Packages example but is still **[VERIFY]** on a live combine |
+| Search Combinable Packages response `combinable_packages[{ id, order_ids }]` + `next_page_token` | Item fields match an independent API reference (CData) and TikTok's paging convention; **[VERIFY]** by the API check on your shop |
 | `GET /fulfillment/202309/packages/{package_id}`, scope `seller.fulfillment.basic`; returns `package_id`, `orders[].id`, tracking number, shipping provider | Confirmed |
 | `POST /fulfillment/202309/packages/{package_id}/ship` with `self_shipment { tracking_number, shipping_provider_id }` | Documented. See the US caveat below |
 | Shipping provider IDs come from **Get Shipping Providers** using the order's `delivery_option_id` | Confirmed. The app never guesses an ID |

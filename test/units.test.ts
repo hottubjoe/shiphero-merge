@@ -262,3 +262,35 @@ test('Connect ShipHero from the dashboard: password used once, never stored; bad
     srv.close();
   }
 });
+
+test('first start without SESSION_SECRET / SHIPHERO_WEBHOOK_SECRET: both are generated once, stored, and reused after restart', async () => {
+  const { buildApp } = await import('../src/app.ts');
+  const os = await import('node:os');
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coldest-'));
+  const saved = { ...process.env };
+  try {
+    delete process.env.SESSION_SECRET;
+    delete process.env.SHIPHERO_WEBHOOK_SECRET;
+    process.env.DATABASE_FILE = path.join(dir, 'db.sqlite');
+    process.env.LOG_FILE = path.join(dir, 'engine.log');
+    process.env.TIKTOK_SERVICE_ID = '7123';
+    const a = buildApp({ quiet: true });
+    assert.ok(a.config.sessionSecret.length >= 32);
+    assert.ok(a.config.shiphero.webhookSecret.length >= 32);
+    assert.equal(a.config.tiktok.serviceId, '7123');
+    const first = { s: a.config.sessionSecret, w: a.config.shiphero.webhookSecret };
+    a.repo.close();
+    const b = buildApp({ quiet: true }); // "restart"
+    assert.equal(b.config.sessionSecret, first.s);
+    assert.equal(b.config.shiphero.webhookSecret, first.w);
+    b.repo.close();
+    process.env.SHIPHERO_WEBHOOK_SECRET = 'from-railway-variables-123';
+    const c = buildApp({ quiet: true }); // env var wins when set
+    assert.equal(c.config.shiphero.webhookSecret, 'from-railway-variables-123');
+    c.repo.close();
+  } finally {
+    process.env = saved; // temp folder is left for the OS to clean (the logger may still be flushing)
+  }
+});

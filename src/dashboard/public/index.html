@@ -76,7 +76,8 @@
       <div class="mono" id="redirectUrl"></div>
     </div>
     <div>
-      <div class="k" style="color:var(--mute);font-size:12px">2. Connect TikTok: authorize your shop in Partner Center. You'll come back here automatically. Or paste the code / full address:</div>
+      <div class="k" style="color:var(--mute);font-size:12px">2. Connect TikTok: open the authorization link, sign in as the COLDEST shop and click Authorize. If you land back here, you're done. If you land on a page that won't load (for example https://localhost:3000/callback?code=…), copy that whole address from the browser bar and paste it below.</div>
+      <div id="authLink" style="margin-top:6px"></div>
       <div style="display:flex; gap:8px; margin-top:6px">
         <input id="authCode" placeholder="https://…?code=… or just the code" style="flex:1; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px" />
         <button class="btn" id="connectBtn">Connect TikTok</button>
@@ -261,7 +262,10 @@ function renderVerify(v) {
 async function loadSetup() {
   const s = await api('/api/setup');
   $('redirectUrl').textContent = location.origin + '/tiktok/callback';
-  $('webhookUrl').textContent = location.origin + '/webhooks/shiphero/shipment-update?token=YOUR_SHIPHERO_WEBHOOK_SECRET';
+  $('authLink').innerHTML = s.tiktokAuthorizeUrl
+    ? `<a class="btn" href="${esc(s.tiktokAuthorizeUrl)}" target="_blank" rel="noopener">Open TikTok authorization link</a> <span class="mono">${esc(s.tiktokAuthorizeUrl)}</span>`
+    : '<span class="mute">Authorization link: add TIKTOK_SERVICE_ID in your hosting Variables to show the button here, or copy the link from Partner Center → your app → Authorization.</span>';
+  $('webhookUrl').textContent = location.origin + (s.webhookPath || '/webhooks/shiphero/shipment-update?token=YOUR_SHIPHERO_WEBHOOK_SECRET');
   const item = (ok, t) => `<div>${ok ? '<span style="color:var(--green)">✔</span>' : '<span style="color:var(--red)">✘</span>'} ${esc(t)}</div>`;
   $('setupList').innerHTML = [
     item(s.tiktokAppKeySet, 'TikTok app key & secret ' + (s.tiktokAppKeySet ? 'set' : 'missing (add TIKTOK_APP_KEY / TIKTOK_APP_SECRET in your hosting Variables)')),

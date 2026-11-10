@@ -44,6 +44,8 @@ export interface Config {
     refreshToken: string;
     shopCipher: string;
     shopId: string;
+    /** Optional: the app's service ID, used only to show the seller authorization link. */
+    serviceId: string;
     apiBase: string;
     authBase: string;
   };
@@ -95,6 +97,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
       refreshToken: env.TIKTOK_REFRESH_TOKEN ?? '',
       shopCipher: env.TIKTOK_SHOP_CIPHER ?? '',
       shopId: env.TIKTOK_SHOP_ID ?? '',
+      serviceId: (env.TIKTOK_SERVICE_ID ?? '').trim(),
       apiBase: env.TIKTOK_API_BASE || 'https://open-api.tiktokglobalshop.com',
       authBase: env.TIKTOK_AUTH_BASE || 'https://auth.tiktok-shops.com',
     },
